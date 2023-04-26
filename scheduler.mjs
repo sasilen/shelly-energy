@@ -8,11 +8,11 @@ let period_length = 24;
 let period_day = 0;
 
 // Request cheapest hours for this length. Set this to typical length needed for f. ex. water heater. 
-let needed_length = 2;
+let needed_length = 4;
 
 // Turn off after this many hours. May be good to keep this longer than needed_length, as
 // f. ex. heating water may sometimes take longer
-let turn_off_hours = 2;
+let turn_off_hours = 4;
 
 // If fetching prices fails, use these schedules. Crontab format
 let defaultstart = "0 1 2 * * SUN,MON,TUE,WED,THU,FRI,SAT";
@@ -103,6 +103,7 @@ function find_cheapest(result) {
           }
         }
         print("Cheapest period: ",cheapest_period_start, " -> ", cheapest_period_end);
+        let modded=false;
         for (let b=0; b<cheap_hours_start.length; b++) {
           if (ikeys[cheap_hours_istart[b]] <= ikeys[cheapest_period_istart] && ikeys[cheapest_period_istart] <= ikeys[cheap_hours_iend[b]]){
             cheapest_period_istart = cheap_hours_istart[b];
@@ -131,12 +132,14 @@ function find_cheapest(result) {
            print(offspec);
            Timer.set(Math.floor(Math.random() * 15 * 1000),false,function (ud) { updateSchedules(ud[0],ud[1],ud[2]); },[timespec,offspec,turn_on]);
          } 
-        print("Cheapest period: ", cheapest_period_start, " -> " cheapest_period_end);
-        let timespec = "0 0 " + cheapest_period_start.slice(2, cheapest_period_start.length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
-        let offspec = "0 0 " + cheapest_period_end.slice(2, cheapest_period_end.length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
-        print(timespec);
-        print(offspec);
-        Timer.set(Math.floor(Math.random() * 15 * 1000),false,function (ud) { updateSchedules(ud[0],ud[1],ud[2]); },[timespec,offspec,turn_on]);
+        if (needed_length!==0) {
+          print("Cheapest period: ", cheapest_period_start, " -> " cheapest_period_end);
+          let timespec = "0 0 " + cheapest_period_start.slice(2, cheapest_period_start.length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
+          let offspec = "0 0 " + cheapest_period_end.slice(2, cheapest_period_end.length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
+          print(timespec);
+          print(offspec);
+          Timer.set(Math.floor(Math.random() * 15 * 1000),false,function (ud) { updateSchedules(ud[0],ud[1],ud[2]); },[timespec,offspec,turn_on]);
+        }
     }
 }
 
@@ -154,7 +157,6 @@ function updateSchedules(timespec, offspec, turn_on) {
     }
     ));
 
-
     print(Shelly.call("Schedule.Create", {
         "id": 0, "enable": true, "timespec": offspec,
         "calls": [{
@@ -166,7 +168,13 @@ function updateSchedules(timespec, offspec, turn_on) {
         }]
     } 
     ));
+}
 
+
+function updateTimer() {
+    print("Starting, fetching hourly prices");
+    print(Shelly.call("Schedule.DeleteAll"));
+    //Stop this script in one minute from now
     // Schedule for the script itself
     print(Shelly.call("Schedule.create", {
         "id": 3, "enable": true, "timespec": script_schedule,
@@ -177,19 +185,10 @@ function updateSchedules(timespec, offspec, turn_on) {
             }
         }]
     }));
-
-    //Stop this script in one minute from now
     Timer.set(60 * 1000, false, function () {
         print("Stopping the script");
         Shelly.call("Script.stop", { "id": script_number })
     });
-
-}
-
-
-function updateTimer() {
-    print("Starting, fetching hourly prices");
-    print(Shelly.call("Schedule.DeleteAll"));
     Shelly.call("HTTP.GET", { url: "https://elspotcontrol.netlify.app/spotprices-v01-FI.json", timeout:60, ssl_ca:"*"}, find_cheapest);
 }
 
