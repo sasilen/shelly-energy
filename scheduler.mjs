@@ -1,11 +1,8 @@
-// Forked from : https://elspotcontrol.netlify.app/
+// Forked from: https://elspotcontrol.netlify.app/
 
 // Find the time from time period starting here and lasting this many hours
 let period_start = 20;
 let period_length = 24;
-
-// If period_start refers to this hour today, this should be 0. If the it is tomorrow, it must be 1.
-let period_day = 0;
 
 // Request cheapest hours for this length. Set this to typical length needed for f. ex. water heater. 
 let needed_length = 4;
@@ -34,13 +31,10 @@ let turn_on_price = 50;
 let minrand = JSON.stringify(Math.floor(Math.random() * 15));
 let secrand = JSON.stringify(Math.floor(Math.random() * 60));
 let script_schedule = secrand+" "+minrand+" "+"18 * * SUN,MON,TUE,WED,THU,FRI,SAT";
-print(script_schedule);
-
+print("Script schedule:", script_schedule);
 
 // Number for this script. If this doesn't work (as in earlier versions), get it from this url (use your own ip) http://192.168.68.128/rpc/Script.List
 let script_number = Shelly.getCurrentScriptId();
-
-
 
 // You can check the schedules here (use your own ip) http://192.168.68.128/rpc/Schedule.List
 
@@ -53,23 +47,22 @@ function find_cheapest(result) {
         print("Finding cheapest hours");
 
         let prices = JSON.parse(result.body);
-
         let hourly_prices = prices["hourly_prices"];
-        let num = 0;
-
-
+        
         let cheapest_period_istart = [];
         let cheapest_period_iend = [];
         let cheapest_period_start = {};
         let cheapest_period_end = {};
-        let cheapest_period_price = {};
+        
         let cheap_hours_start = [];
-        let cheap_hours_istart = [];
         let cheap_hours_end = [];
+        let cheap_hours_istart = [];
         let cheap_hours_iend = [];
+     
+        let cheapest_period_price = {};
+
         cheapest_period_price = 999999999999;
-        cheapest_period_start = 0;
-        cheapest_period_end = 0;
+
         let ending = 0;
         let subindex= 0;  
 
@@ -124,6 +117,7 @@ function find_cheapest(result) {
         }
         print("-----> MODIFIED OUTPUT <-------");
         let turn_on=true;
+        let skip_period=false;
         for (let b=0; b<cheap_hours_start.length; b++) {
            print("Cheap hours: ", cheap_hours_start[b]," -> " cheap_hours_end[b]);
            let timespec = "0 0 " + cheap_hours_start[b].slice(2, cheap_hours_start[b].length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
@@ -131,8 +125,11 @@ function find_cheapest(result) {
            print(timespec);
            print(offspec);
            Timer.set(Math.floor(Math.random() * 15 * 1000),false,function (ud) { updateSchedules(ud[0],ud[1],ud[2]); },[timespec,offspec,turn_on]);
+           if (cheap_hours_start[b]===cheapest_period_start && cheap_hours_end[b]===cheapest_period_end) {
+             skip_period=true;
+           }
          } 
-        if (needed_length!==0) {
+        if (needed_length!==0 && skip_period===false) {
           print("Cheapest period: ", cheapest_period_start, " -> " cheapest_period_end);
           let timespec = "0 0 " + cheapest_period_start.slice(2, cheapest_period_start.length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
           let offspec = "0 0 " + cheapest_period_end.slice(2, cheapest_period_end.length) + " * * SUN,MON,TUE,WED,THU,FRI,SAT";
@@ -170,11 +167,9 @@ function updateSchedules(timespec, offspec, turn_on) {
     ));
 }
 
-
 function updateTimer() {
     print("Starting, fetching hourly prices");
     print(Shelly.call("Schedule.DeleteAll"));
-    //Stop this script in one minute from now
     // Schedule for the script itself
     print(Shelly.call("Schedule.create", {
         "id": 3, "enable": true, "timespec": script_schedule,
@@ -185,6 +180,7 @@ function updateTimer() {
             }
         }]
     }));
+    //Stop this script in one minute from now
     Timer.set(60 * 1000, false, function () {
         print("Stopping the script");
         Shelly.call("Script.stop", { "id": script_number })
