@@ -1,28 +1,15 @@
 // Forked from: https://elspotcontrol.netlify.app/
 
-// Find the time from time period starting here and lasting this many hours
-let period_start = 20;
-let period_length = 24;
-
 // Request cheapest hours for this length. Set this to typical length needed for f. ex. water heater. 
 let needed_length = 4;
-
-// Turn off after this many hours. May be good to keep this longer than needed_length, as
-// f. ex. heating water may sometimes take longer
-let turn_off_hours = 4;
 
 // If fetching prices fails, use these schedules. Crontab format
 let defaultstart = "0 1 2 * * SUN,MON,TUE,WED,THU,FRI,SAT";
 let defaultend = "0 1 7 * * SUN,MON,TUE,WED,THU,FRI,SAT";
 
-// Maximum average hourly price. If hourly price is higher than this, do not turn switch on!
-// This setting still sets the schedule, but sets switch off both on start and stop. 
-// If you want, you can manually then turn the scheduled time on. 
-// By default, and if you do not want to uset this, set this very high. 
-// The price is EUR per megawatthour, not including taxes! So eg. for a price of 50c/kWH, use 500 
-let max_avg_price = 999999;
 let keys = ["0.19","0.20","0.21","0.22","0.23","1.0","1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14","1.15","1.16","1.17","1.18","1.19","1.20"];
 let ikeys = [0.19,0.20,0.21,0.22,0.23,1.0,1.01,1.02,1.03,1.04,1.05,1.06,1.07,1.08,1.09,1.10,1.11,1.12,1.13,1.14,1.15,1.16,1.17,1.18,1.19,1.20];
+// The price is EUR per megawatthour, not including taxes! So eg. for a price of 50c/kWH, use 500 
 let turn_on_price = 50;
 
 // Crontab for running this script. Good to keep this way
@@ -69,7 +56,6 @@ function find_cheapest(result) {
         for (let i=0; i < keys.length; i++) {
                  
             if (hourly_prices[keys[i]]["price"] < turn_on_price && subindex < i) {
-//              print("Found cheap hour: ",keys[i]);
               cheap_hours_start.push(keys[i]);
               cheap_hours_istart.push(i);
               for (ending = 0; hourly_prices[keys[i+ending]]["price"] < turn_on_price; ending++) {
@@ -96,7 +82,6 @@ function find_cheapest(result) {
           }
         }
         print("Cheapest period: ",cheapest_period_start, " -> ", cheapest_period_end);
-        let modded=false;
         for (let b=0; b<cheap_hours_start.length; b++) {
           if (ikeys[cheap_hours_istart[b]] <= ikeys[cheapest_period_istart] && ikeys[cheapest_period_istart] <= ikeys[cheap_hours_iend[b]]){
             cheapest_period_istart = cheap_hours_istart[b];
