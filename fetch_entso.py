@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-#from lxml import etree
 import xml.etree.ElementTree as ET
 import json
 import sys
